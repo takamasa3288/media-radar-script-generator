@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>メディアレーダー架電スクリプト生成ツール</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @media print {
+            .no-print { display: none; }
+            .print-full { max-width: 100%; }
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-blue-50 to-indigo-50">
+    <div class="min-h-screen p-6">
+        <!-- Header -->
+        <div class="max-w-7xl mx-auto mb-8">
+            <div class="text-center">
+                <h1 class="text-4xl font-bold text-indigo-900 mb-2">📞 架電スクリプト生成ツール</h1>
+                <p class="text-gray-600">メディアレーダーのリード情報をパーソナライズ台本に自動変換</p>
+            </div>
+        </div>
+
+        <!-- Main Container -->
+        <div class="max-w-7xl mx-auto">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <!-- Left: Input Section -->
+                <div class="bg-white rounded-lg shadow-lg p-6 no-print">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-4">📝 リード情報を貼り付け</h2>
+
+                    <!-- Settings Panel -->
+                    <div class="mb-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                        <h3 class="text-sm font-semibold text-gray-700 mb-3">⚙️ 設定</h3>
+                        <div class="space-y-3">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">自社名</label>
+                                <input type="text" id="companyName" placeholder="例：Hashtag Inc."
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                    value="">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">発信者名</label>
+                                <input type="text" id="senderName" placeholder="例：田中太郎"
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                    value="">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">サービス/商材名</label>
+                                <input type="text" id="serviceName" placeholder="例：インフルエンサーマーケティング支援"
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                    value="">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">事例ページ番号（3日後メール用）</label>
+                                <input type="text" id="pageNumber" placeholder="例：3"
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                    value="">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">限定オファー名（1ヶ月後メール用）</label>
+                                <input type="text" id="limitedOffer" placeholder="例：春の特別割引キャンペーン"
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                    value="">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Text Input -->
+                    <textarea id="inputText" placeholder="メディアレーダーから以下をコピペしてください：
+- DL日時
+- 資料タイトル
+- 会社名
+- 担当者名
+- メール
+- 電話番号
+- 企業情報（業種、年商等）
+- DL時アンケート（実施確度、想定時期等）"
+                        class="w-full h-64 p-4 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 resize-none text-sm font-mono"></textarea>
+
+                    <!-- Generate Button -->
+                    <button onclick="generateScript()"
+                        class="w-full mt-6 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-lg transition duration-200 transform hover:scale-105">
+                        ✨ スクリプト生成
+                    </button>
+
+                    <!-- Info -->
+                    <div class="mt-4 p-3 bg-blue-50 border-l-4 border-blue-500 rounded text-sm text-blue-800">
+                        <p><strong>💡 使い方：</strong>メディアレーダーの詳細画面をテキストで全てコピーし、上のエリアに貼り付けてください。</p>
+                    </div>
+                </div>
+
+                <!-- Right: Output Section -->
+                <div class="bg-white rounded-lg shadow-lg p-6 print-full">
+                    <div class="mb-4 flex items-center gap-3">
+                        <label class="text-sm font-semibold text-gray-700">コンテンツ種別:</label>
+                        <select id="modeSelector" onchange="switchMode()"
+                            class="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                            <option value="talk">📞 テレアポスクリプト</option>
+                            <option value="email3d">📧 3日後フォローメール</option>
+                            <option value="email1m">📧 1ヶ月後フォローメール</option>
+                        </select>
+                    </div>
+
+                    <!-- Extracted Info -->
+                    <div id="extractedInfo" class="mb-6 p-4 bg-indigo-50 rounded-lg border border-indigo-200 hidden">
+                        <h3 class="text-sm font-semibold text-indigo-900 mb-2">✅ 解析結果</h3>
+                        <div id="extractedDetails" class="grid grid-cols-2 gap-2 text-xs text-indigo-800">
+                            <!-- Dynamic content -->
+                        </div>
+                    </div>
+
+                    <!-- Script Output (Talk) -->
+                    <div id="scriptOutput" class="space-y-6 text-gray-700 hidden print-full">
+                        <!-- Opening -->
+                        <div class="border-l-4 border-indigo-500 pl-4">
+                            <h3 class="font-bold text-lg text-indigo-900 mb-2">【オープニング】</h3>
+                            <div id="openingSection" class="bg-gray-50 p-3 rounded text-sm leading-relaxed whitespace-pre-wrap font-sans"></div>
+                        </div>
+
+                        <!-- Hook -->
+                        <div class="border-l-4 border-indigo-500 pl-4">
+                            <h3 class="font-bold text-lg text-indigo-900 mb-2">【フック】</h3>
+                            <div id="hookSection" class="bg-gray-50 p-3 rounded text-sm leading-relaxed whitespace-pre-wrap font-sans"></div>
+                        </div>
+
+                        <!-- Body -->
+                        <div class="border-l-4 border-indigo-500 pl-4">
+                            <h3 class="font-bold text-lg text-indigo-900 mb-2">【ボディ/提案】</h3>
+                            <div id="bodySection" class="bg-gray-50 p-3 rounded text-sm leading-relaxed whitespace-pre-wrap font-sans"></div>
+                        </div>
+
+                        <!-- Handler -->
+                        <div class="border-l-4 border-orange-500 pl-4">
+                            <h3 class="font-bold text-lg text-orange-900 mb-2">【想定異議対応】</h3>
+                            <div id="handlerSection" class="bg-orange-50 p-3 rounded text-sm leading-relaxed whitespace-pre-wrap font-sans"></div>
+                        </div>
+
+                        <!-- Closing -->
+                        <div class="border-l-4 border-green-500 pl-4">
+                            <h3 class="font-bold text-lg text-green-900 mb-2">【クロージング】</h3>
+                            <div id="closingSection" class="bg-green-50 p-3 rounded text-sm leading-relaxed whitespace-pre-wrap font-sans"></div>
+                        </div>
+                    </div>
+
+                    <!-- Email 3 Days Output -->
+                    <div id="email3dOutput" class="space-y-6 text-gray-700 hidden print-full">
+                        <!-- Subject -->
+                        <div class="border-l-4 border-blue-500 pl-4">
+                            <h3 class="font-bold text-lg text-blue-900 mb-2">【件名】</h3>
+                            <div id="email3dSubject" class="bg-blue-50 p-3 rounded text-sm leading-relaxed whitespace-pre-wrap font-sans"></div>
+                        </div>
+
+                        <!-- Body -->
+                        <div class="border-l-4 border-blue-500 pl-4">
+                            <h3 class="font-bold text-lg text-blue-900 mb-2">【本文】</h3>
+                            <div id="email3dBody" class="bg-blue-50 p-3 rounded text-sm leading-relaxed whitespace-pre-wrap font-sans"></div>
+                        </div>
+                    </div>
+
+                    <!-- Email 1 Month Output -->
+                    <div id="email1mOutput" class="space-y-6 text-gray-700 hidden print-full">
+                        <!-- Subject -->
+                        <div class="border-l-4 border-purple-500 pl-4">
+                            <h3 class="font-bold text-lg text-purple-900 mb-2">【件名】</h3>
+                            <div id="email1mSubject" class="bg-purple-50 p-3 rounded text-sm leading-relaxed whitespace-pre-wrap font-sans"></div>
+                        </div>
+
+                        <!-- Body -->
+                        <div class="border-l-4 border-purple-500 pl-4">
+                            <h3 class="font-bold text-lg text-purple-900 mb-2">【本文】</h3>
+                            <div id="email1mBody" class="bg-purple-50 p-3 rounded text-sm leading-relaxed whitespace-pre-wrap font-sans"></div>
+                        </div>
+                    </div>
+
+                    <!-- No Output Message -->
+                    <div id="noOutput" class="text-center py-12 text-gray-400">
+                        <p class="text-lg">スクリプトがここに表示されます</p>
+                        <p class="text-sm mt-2">左のテキストエリアに情報を貼り付けて「スクリプト生成」をクリック</p>
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div id="actionButtons" class="grid grid-cols-2 gap-4 mt-6 hidden no-print">
+                        <button onclick="copyToClipboard()" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg transition">
+                            📋 コピー
+                        </button>
+                        <button onclick="window.print()" class="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-lg transition">
+                            🖨️ 印刷
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Parse lead information
+        function parseLeadInfo(text) {
+            const info = {
+                dlDate: '',
+                materialTitle: '',
+                companyName: '',
+                contactName: '',
+                jobTitle: '',
+                email: '',
+                phone: '',
+                industry: '',
+                annualRevenue: '',
+                employees: '',
+                implementationConfidence: '',
+                budget: '',
+                timeline: '',
+                proposalStance: ''
+            };
+
+            const lines = text.split('\n');
+
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i].trim();
+
+                // DL Date
+                if (/\d{4}年.*月.*日.*時.*分/.test(line)) {
+                    info.dlDate = line;
+                }
+
+                // Material Title
+                if (/^【.*】/.test(line)) {
+                    info.materialTitle = line.replace(/【|】/g, '');
+                }
+
+                // Company Name (line after material title, has company markers)
+                if (/株式会社|有限会社|合同会社|NPO|法人/.test(line)) {
+                    info.companyName = line;
+                }
+
+                // Contact Name (line with 様)
+                if (/様/.test(line)) {
+                    info.contactName = line.replace(/様/, '').trim();
+                    // Job title is usually on the same or previous line
+                    if (lines[i-1] && /部長|課長|マネージャー|代表|CEO|CMO|CFO/.test(lines[i-1])) {
+                        info.jobTitle = lines[i-1].trim();
+                    }
+                }
+
+                // Email
+                if (/@/.test(line) && line.includes('@')) {
+                    info.email = line.match(/[\w\.-]+@[\w\.-]+\.\w+/)?.[0] || line;
+                }
+
+                // Phone
+                if (/\d{3}-\d{4}-\d{4}|\d{3}-\d{3}-\d{4}|\d{2,4}-\d{3,4}-\d{4}/.test(line)) {
+                    const match = line.match(/\d{2,4}-\d{3,4}-\d{4}/);
+                    info.phone = match?.[0] || '';
+                }
+
+                // Industry
+                if (line.startsWith('業種')) {
+                    info.industry = line.replace('業種', '').trim();
+                }
+
+                // Annual Revenue
+                if (line.startsWith('年商')) {
+                    info.annualRevenue = line.replace('年商', '').trim();
+                }
+
+                // Employees
+                if (line.startsWith('従業員数')) {
+                    info.employees = line.replace('従業員数', '').trim();
+                }
+
+                // Implementation Confidence
+                if (line.startsWith('実施確度')) {
+                    info.implementationConfidence = line.replace('実施確度', '').trim();
+                }
+
+                // Budget
+                if (line.startsWith('想定予算')) {
+                    info.budget = line.replace('想定予算', '').trim();
+                }
+
+                // Timeline
+                if (line.startsWith('想定時期')) {
+                    info.timeline = line.replace('想定時期', '').trim();
+                }
+
+                // Proposal Stance
+                if (line.startsWith('提案の立場')) {
+                    info.proposalStance = line.replace('提案の立場', '').trim();
+                }
+            }
+
+            return info;
+        }
+
+        // Switch mode for display
+        function switchMode() {
+            const mode = document.getElementById('modeSelector').value;
+
+            // Hide all outputs
+            document.getElementById('scriptOutput').classList.add('hidden');
+            document.getElementById('email3dOutput').classList.add('hidden');
+            document.getElementById('email1mOutput').classList.add('hidden');
+
+            // Show selected mode
+            if (mode === 'talk') {
+                document.getElementById('scriptOutput').classList.remove('hidden');
+            } else if (mode === 'email3d') {
+                document.getElementById('email3dOutput').classList.remove('hidden');
+            } else if (mode === 'email1m') {
+                document.getElementById('email1mOutput').classList.remove('hidden');
+            }
+        }
+
+        // Generate personalized script
+        function generateScript() {
+            const inputText = document.getElementById('inputText').value;
+            if (!inputText.trim()) {
+                alert('テキストを入力してください');
+                return;
+            }
+
+            const mode = document.getElementById('modeSelector').value;
+            const info = parseLeadInfo(inputText);
+
+            // Display extracted info
+            const extractedDetails = document.getElementById('extractedDetails');
+            extractedDetails.innerHTML = `
+                <div><span class="font-semibold">会社名:</span> ${info.companyName || 'N/A'}</div>
+                <div><span class="font-semibold">担当者:</span> ${info.contactName || 'N/A'}${info.jobTitle ? ' (' + info.jobTitle + ')' : ''}</div>
+                <div><span class="font-semibold">業種:</span> ${info.industry || 'N/A'}</div>
+                <div><span class="font-semibold">確度:</span> ${info.implementationConfidence || 'N/A'}</div>
+                <div><span class="font-semibold">メール:</span> ${info.email || 'N/A'}</div>
+                <div><span class="font-semibold">電話:</span> ${info.phone || 'N/A'}</div>
+                <div><span class="font-semibold">時期:</span> ${info.timeline || 'N/A'}</div>
+                <div><span class="font-semibold">資料:</span> ${info.materialTitle || 'N/A'}</div>
+            `;
+            document.getElementById('extractedInfo').classList.remove('hidden');
+
+            // Generate content based on mode
+            if (mode === 'talk') {
+                generateTalk(info);
+            } else if (mode === 'email3d') {
+                generateEmail3d(info);
+            } else if (mode === 'email1m') {
+                generateEmail1m(info);
+            }
+
+            document.getElementById('noOutput').classList.add('hidden');
+            document.getElementById('actionButtons').classList.remove('hidden');
+        }
+
+        // Generate talk script
+        function generateTalk(info) {
+            const company = document.getElementById('companyName').value || 'Hashtag Inc.';
+            const sender = document.getElementById('senderName').value || '田中太郎';
+            const service = document.getElementById('serviceName').value || 'インフルエンサーマーケティング支援';
+
+            // Generate Opening
+            const opening = `お忙しいところ失礼いたします。
+
+私、${company}の${sender}と申します。
+
+本日は、${info.companyName || '貴社'}の${info.contactName}様にお電話させていただきました。
+
+お忙しいところ恐れ入りますが、少々お時間をいただけますでしょうか？`;
+
+            // Generate Hook
+            const hook = `先日は、「${info.materialTitle}」という資料をダウンロードいただきまして、
+ありがとうございます。
+
+${info.industry ? info.industry + 'という業界で' : ''}ご検討いただいているということで、
+お話しさせていただきたいことがございます。`;
+
+            // Generate Body
+            let body = `${info.companyName}様は${info.industry}でいらっしゃるんですね。
+
+実は、この業界の多くのお客様から「${
+                info.industry.includes('ホテル') ? 'オンライン集客の効率化' :
+                info.industry.includes('不動産') ? '顧客獲得コストの削減' :
+                info.industry.includes('EC') ? 'SNS連携による売上向上' :
+                'デジタルマーケティングの強化'
+            }」という課題をよくお聞きします。
+
+弊社では${service}により、そのような課題を解決するお手伝いをしております。
+
+ちなみに、${info.contactName}様は${info.timeline || '今後'}を目安にご検討とのことですが、
+特にどのようなお悩みがあってこの資料をご覧いただいたのですか？`;
+
+            // Generate Handler
+            let handler = `【よくあるご質問への対応例】
+
+Q. 「今は忙しいので、また後で...」
+A. 承知いたしました。では、お手数ですが、改めてご都合のよい日時をお聞きできますでしょうか？
+   ${info.email ? 'メールでもお送りできますので、' + info.email + 'でよろしかったでしょうか？' : ''}
+
+Q. 「資料を見てから判断する」
+A. かしこまりました。詳しい資料をメールでお送りいたします。
+   ${info.email ? info.email : ''}へお送りさせていただいてもよろしいでしょうか？
+
+Q. 「予算がない」
+A. ${info.budget.includes('未') ? 'そうですね。予算が未確定とのことですが、' : ''}
+   実は概算でのご相談も可能です。
+   まずは5分ほどだけお時間いただいて、お悩みをお聞きしてもよろしいでしょうか？
+
+Q. 「ライバル企業を使っている」
+A. そうなんですね。実は、弊社のサービスは${info.industry ? info.industry + 'に特化した' : ''}
+   独自の手法を持っておりまして、乗り換えいただくと効果が倍増するケースが多いんです。`;
+
+            // Generate Closing
+            let closing = `では、詳しいご説明とサービスのご紹介を
+${info.timeline && info.timeline.includes('1') ? '今週' : '今週か来週'}に30分ほどでさせていただきたいのですが、
+
+${info.timeline && info.timeline.includes('1ヶ月以内') ? '今週の水曜日か木曜日の15:00～17:00' : '来週のいずれかの日時'}は
+ご都合つけていただけますでしょうか？`;
+
+            // Update output
+            document.getElementById('openingSection').textContent = opening;
+            document.getElementById('hookSection').textContent = hook;
+            document.getElementById('bodySection').textContent = body;
+            document.getElementById('handlerSection').textContent = handler;
+            document.getElementById('closingSection').textContent = closing;
+
+            document.getElementById('scriptOutput').classList.remove('hidden');
+            document.getElementById('email3dOutput').classList.add('hidden');
+            document.getElementById('email1mOutput').classList.add('hidden');
+
+            // Save settings
+            localStorage.setItem('companyName', company);
+            localStorage.setItem('senderName', sender);
+            localStorage.setItem('serviceName', service);
+        }
+
+        // Generate 3-day follow-up email
+        function generateEmail3d(info) {
+            const sender = document.getElementById('senderName').value || '田中太郎';
+            const company = document.getElementById('companyName').value || 'Hashtag Inc.';
+            const pageNumber = document.getElementById('pageNumber').value || '3';
+
+            const subject = `【${info.companyName} 担当 ${info.contactName}様】${info.materialTitle}のP.${pageNumber}の事例詳細について`;
+
+            const body = `${info.contactName}様
+
+先日は「${info.materialTitle}」をダウンロードいただき、
+ありがとうございました。
+
+ご覧いただいた資料の P.${pageNumber} にございます
+「${info.industry} での事例」について、
+さらに詳細な情報をお持ちしたくご連絡いたしました。
+
+具体的には以下の点が資料では触れられていなかった詳細です：
+・${info.industry}に特化した施策の実施手順
+・ROIの詳細な内訳と実績値
+・${info.companyName}が支援した際の独自ノウハウ
+
+${info.timeline}を目安にご検討とのことでしたので、
+まずは15分のオンラインお打ち合わせでお伝えできればと思います。
+
+ご都合のよい日時を教えていただけますでしょうか？
+
+---
+${sender} | ${company}
+${info.email}`;
+
+            document.getElementById('email3dSubject').textContent = subject;
+            document.getElementById('email3dBody').textContent = body;
+
+            document.getElementById('scriptOutput').classList.add('hidden');
+            document.getElementById('email3dOutput').classList.remove('hidden');
+            document.getElementById('email1mOutput').classList.add('hidden');
+
+            // Save settings
+            localStorage.setItem('pageNumber', pageNumber);
+        }
+
+        // Generate 1-month follow-up email
+        function generateEmail1m(info) {
+            const sender = document.getElementById('senderName').value || '田中太郎';
+            const company = document.getElementById('companyName').value || 'Hashtag Inc.';
+            const limitedOffer = document.getElementById('limitedOffer').value || '春の特別割引キャンペーン';
+
+            const subject = `【非公開】${info.industry}向け事例集 限定公開のご案内`;
+
+            const body = `${info.contactName}様
+
+${company}の${sender}です。
+
+先日ご共有した資料から約1ヶ月が経過しましたが、
+ご状況はいかがでしょうか？
+
+本日は${info.contactName}様のような${info.industry}の方々へ向けた
+「非公開事例集」を限定でご案内しております。
+
+▼ 内容:
+・${info.industry}業界での最新成功事例3選
+・当社サービス導入後の定量的な成果（具体的な数値付き）
+・${limitedOffer}
+
+公開期間が限られているため、
+本メールを受け取られた方への限定案内となっています。
+
+ご興味がございましたら、返信いただくだけで
+詳細をお送りいたします。
+
+---
+${sender} | ${company}`;
+
+            document.getElementById('email1mSubject').textContent = subject;
+            document.getElementById('email1mBody').textContent = body;
+
+            document.getElementById('scriptOutput').classList.add('hidden');
+            document.getElementById('email3dOutput').classList.add('hidden');
+            document.getElementById('email1mOutput').classList.remove('hidden');
+
+            // Save settings
+            localStorage.setItem('limitedOffer', limitedOffer);
+        }
+
+        // Copy to clipboard
+        function copyToClipboard() {
+            const mode = document.getElementById('modeSelector').value;
+            let text = '';
+
+            if (mode === 'talk') {
+                const sections = [
+                    document.getElementById('openingSection')?.textContent || '',
+                    document.getElementById('hookSection')?.textContent || '',
+                    document.getElementById('bodySection')?.textContent || '',
+                    document.getElementById('handlerSection')?.textContent || '',
+                    document.getElementById('closingSection')?.textContent || ''
+                ];
+                text = sections.join('\n\n---\n\n');
+            } else if (mode === 'email3d') {
+                const subject = document.getElementById('email3dSubject')?.textContent || '';
+                const body = document.getElementById('email3dBody')?.textContent || '';
+                text = `【件名】\n${subject}\n\n【本文】\n${body}`;
+            } else if (mode === 'email1m') {
+                const subject = document.getElementById('email1mSubject')?.textContent || '';
+                const body = document.getElementById('email1mBody')?.textContent || '';
+                text = `【件名】\n${subject}\n\n【本文】\n${body}`;
+            }
+
+            navigator.clipboard.writeText(text).then(() => {
+                alert('コンテンツをコピーしました！');
+            });
+        }
+
+        // Load saved settings
+        window.addEventListener('load', () => {
+            document.getElementById('companyName').value = localStorage.getItem('companyName') || '';
+            document.getElementById('senderName').value = localStorage.getItem('senderName') || '';
+            document.getElementById('serviceName').value = localStorage.getItem('serviceName') || '';
+            document.getElementById('pageNumber').value = localStorage.getItem('pageNumber') || '';
+            document.getElementById('limitedOffer').value = localStorage.getItem('limitedOffer') || '';
+        });
+
+        // Auto-generate on paste
+        document.getElementById('inputText').addEventListener('paste', () => {
+            setTimeout(() => generateScript(), 100);
+        });
+    </script>
+</body>
+</html>
